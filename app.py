@@ -1,9 +1,8 @@
 # app.py
 import streamlit as st
 from pathlib import Path
-import shutil
-import zipfile
 import tempfile
+import zipfile
 
 from compare_tmdl import (
     find_semantic_model_folder,
@@ -15,25 +14,38 @@ from compare_tmdl import (
 from merge_tmdl import merge_models
 
 st.set_page_config(page_title="Power BI TMDL Manager", layout="wide")
-
 st.title("Power BI Model Control")
 
 # ---------------------
-# Seleção de pastas
+# Upload de modelos
 # ---------------------
-st.header("Selecionar Modelos")
+st.header("Enviar Modelos")
 
-model_a_root = st.text_input("Caminho do Modelo A (fonte)")
-model_b_root = st.text_input("Caminho do Modelo B (destino)")
+uploaded_a = st.file_uploader("Upload do Modelo A (.zip)", type=["zip"])
+uploaded_b = st.file_uploader("Upload do Modelo B (.zip)", type=["zip"])
 
-compare_button = st.button("Comparar Modelos")
+# Função para salvar e extrair ZIP
+def save_and_extract_zip(uploaded_file):
+    tmp_dir = Path(tempfile.mkdtemp())
+    zip_path = tmp_dir / uploaded_file.name
+    with open(zip_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(tmp_dir)
+    return tmp_dir
 
-# variável para armazenar o relatório em texto
+model_a_root = save_and_extract_zip(uploaded_a) if uploaded_a else None
+model_b_root = save_and_extract_zip(uploaded_b) if uploaded_b else None
+
+# ---------------------
+# Comparação
+# ---------------------
 comparison_text = ""
 
+compare_button = st.button("Comparar Modelos")
 if compare_button:
     if not model_a_root or not model_b_root:
-        st.error("Informe os caminhos das duas pastas.")
+        st.error("Envie os dois arquivos ZIP antes de comparar.")
     else:
         with st.spinner("Comparando modelos..."):
             # localizar .SemanticModel
@@ -58,8 +70,9 @@ if compare_button:
                     target_parsed = {f.stem: parse_tmdl_file(f) for f in b_files}
 
                     report = compare_models(source_parsed, target_parsed)
-
                     counts = report["counts"]
+
+                    # Resumo
                     st.subheader("Resumo da Comparação")
                     st.write(f"Tabelas no Modelo A: {counts['source_total']}")
                     st.write(f"Tabelas no Modelo B: {counts['target_total']}")
@@ -68,7 +81,7 @@ if compare_button:
                     st.write(f"➕ Apenas no A: {counts['only_in_source']}")
                     st.write(f"➖ Apenas no B: {counts['only_in_target']}")
 
-                    # detalhes das diferenças
+                    # Detalhes
                     if lists := report.get("lists"):
                         if lists["only_in_source"]:
                             st.subheader("Tabelas apenas no Modelo A")
@@ -94,7 +107,7 @@ if compare_button:
                             if d.get("textual_diff_snippet"):
                                 st.write("Trecho textual diff disponível (resumido)")
 
-                    # gerar texto do relatório para download
+                    # Gerar texto para download
                     lines = []
                     lines.append(f"Tabelas no Modelo A: {counts['source_total']}")
                     lines.append(f"Tabelas no Modelo B: {counts['target_total']}")
@@ -125,11 +138,9 @@ if compare_button:
                                 lines.append(f"    • Medidas só no B: {', '.join(d['measures_only_in_target'])}")
 
                     comparison_text = "\n".join(lines)
-
-                    # botão de merge aparece após comparação
                     st.session_state["ready_to_merge"] = True
 
-# botão de download do relatório
+# Botão de download do relatório
 if comparison_text:
     st.download_button(
         label="📥 Baixar Resultado da Comparação",
@@ -137,7 +148,6 @@ if comparison_text:
         file_name="Comparacao_Modelos.txt",
         mime="text/plain"
     )
-
 
 # ---------------------
 # Merge
@@ -147,19 +157,23 @@ if st.session_state.get("ready_to_merge"):
     merge_button = st.button("Mesclar Modelos")
     if merge_button:
         with st.spinner("Mesclando modelos..."):
+            # executa o merge
             result = merge_models(model_a_root, model_b_root)
 
             st.success("✅ Merge concluído!")
             st.write(f"Tabelas novas: {len(result['novas'])}", result['novas'])
             st.write(f"Tabelas atualizadas: {len(result['atualizadas'])}", result['atualizadas'])
 
-            # criar zip do Modelo B atualizado
-            b_folder = Path(result["destino"]).parent
+            # pegar a pasta pai do .semanticmodel do Modelo B atualizado
+            b_folder = Path(result["destino"]).parent  # aqui pegamos o pai
+
+            # criar ZIP mantendo a estrutura completa do modelo
             with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
                 with zipfile.ZipFile(tmp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
                     for f in b_folder.rglob("*"):
-                        zipf.write(f, f.relative_to(b_folder))
-            # abrir o ZIP como bytes
+                        zipf.write(f, f.relative_to(b_folder))  # mantém estrutura de pastas
+
+            # abrir o ZIP como bytes para o download
             with open(tmp_zip.name, "rb") as f:
                 zip_bytes = f.read()
             
@@ -169,5 +183,6 @@ if st.session_state.get("ready_to_merge"):
                 data=zip_bytes,
                 file_name="ModeloB_Atualizado.zip",
                 mime="application/zip"
-)
+            )
+
 
