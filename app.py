@@ -181,7 +181,7 @@ if st.session_state.get("ready_to_merge"):
             st.download_button(
                 "📥 Baixar Modelo B Atualizado (ZIP)",
                 data=zip_bytes,
-                file_name="ModeloB_Atualizado.zip",
+                file_name="ModeloB_Atualizado.SemanticModel.zip",
                 mime="application/zip"
             )
 
