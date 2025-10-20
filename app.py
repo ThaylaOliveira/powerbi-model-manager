@@ -250,8 +250,11 @@ with tab2:
     st.markdown('<div class="section">', unsafe_allow_html=True)
     st.subheader("🧩 Mesclar Modelos")
 
-    uploaded_a_merge = st.file_uploader("Modelo A (.zip)", type=["zip"], key="upload_a_merge")
-    uploaded_b_merge = st.file_uploader("Modelo B (.zip)", type=["zip"], key="upload_b_merge")
+    col1, col2 = st.columns(2)
+    with col1:
+        uploaded_a_merge = st.file_uploader("Modelo A (.zip)", type=["zip"], key="upload_a_merge")
+    with col2:
+        uploaded_b_merge = st.file_uploader("Modelo B (.zip)", type=["zip"], key="upload_b_merge")
 
     model_a_root = save_and_extract_zip(uploaded_a_merge) if uploaded_a_merge else None
     model_b_root = save_and_extract_zip(uploaded_b_merge) if uploaded_b_merge else None
