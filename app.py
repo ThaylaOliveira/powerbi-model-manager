@@ -288,4 +288,8 @@ with tab2:
 # ---------------------
 # RODAPÉ
 # ---------------------
-st.markdown('<div class="footer">Desenvolvido por Thayla Oliveira para Sonar Data Design ✨</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="footer">Desenvolvido por Thayla Oliveira para <a href="https://sonardd.com.br" target="_blank">Sonar Data Design</a> ✨</div>',
+    unsafe_allow_html=True
+)
+
