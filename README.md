@@ -34,6 +34,8 @@ Essa ferramenta foi criada para auxiliar analistas e engenheiros de dados a **id
    - Substitua no seu projeto Power BI.  
 
 ---
-
+## 👩‍💻 Autora
+Thayla Oliveira
+🔗 [LinkedIn](https://www.linkedin.com/in/thayla-oliveira/) | 📧 thaylathais1@gmail.com
 
 
