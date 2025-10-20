@@ -13,18 +13,103 @@ from compare_tmdl import (
 )
 from merge_tmdl import merge_models
 
-st.set_page_config(page_title="Power BI TMDL Manager", layout="wide")
-st.title("Power BI Model Control")
+# ---------------------
+# CONFIGURAÇÃO INICIAL
+# ---------------------
+st.set_page_config(page_title="Power BI Model Control", layout="wide", page_icon="⚙️")
+
+st.markdown(
+    """
+    <style>
+    .main-title {
+        text-align: center;
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #f4b400;
+        margin-bottom: 0.5rem;
+    }
+    .sub-title {
+        text-align: center;
+        color: #ccc;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+    .section {
+        background-color: #1E1E1E;
+        border-radius: 12px;
+        box-shadow: 0 0 10px rgba(255,255,255,0.05);
+        margin-bottom: 2rem;
+    }
+    .footer {
+        text-align: center;
+        font-size: 0.9rem;
+        color: #999;
+        margin-top: 2rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown('<div class="main-title">⚙️ Power BI Model Control</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Compare, mescle e atualize modelos semânticos do Power BI com facilidade.</div>', unsafe_allow_html=True)
 
 # ---------------------
-# Upload de modelos
+# SIDEBAR - INSTRUÇÕES
 # ---------------------
-st.header("Enviar Modelos")
 
-uploaded_a = st.file_uploader("Upload do Modelo A (.zip)", type=["zip"])
-uploaded_b = st.file_uploader("Upload do Modelo B (.zip)", type=["zip"])
+# Estilo para aumentar a largura e personalizar o visual da sidebar
+st.markdown(
+    """
+    <style>
+    [data-testid="stSidebar"] {
+        width: 400px !important;
+        min-width: 400px !important;
+        background-color: #181818 !important;
+        border-right: 1px solid #333;
+        padding: 1rem;
+    }
+    [data-testid="stSidebar"] * {
+        color: #ddd !important;
+        font-size: 0.95rem;
+    }
+    [data-testid="stSidebar"] h1, 
+    [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3 {
+        color: #f4b400 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-# Função para salvar e extrair ZIP
+# Conteúdo da sidebar
+st.sidebar.header("📘 Instruções de Uso")
+st.sidebar.markdown("""
+1. **Prepare seus modelos**  
+   Exporte dois arquivos `.zip` contendo as pastas do modelo semântico (.pbip) do Power BI.  
+   - Modelo **A** → Fonte (modelo mais novo)  
+   - Modelo **B** → Destino (modelo base no qual será aplicado o merge)
+
+2. **Etapas do processo**  
+   - Vá até a aba **Comparar** para identificar diferenças entre os modelos.  
+   - Depois, na aba **Mesclar**, una as tabelas novas e atualizadas no Modelo B.  
+
+3. **Resultado**  
+   - Após o merge, você poderá **baixar o novo Modelo B atualizado** em formato `.zip`,  
+     pronto para ser substituído no seu projeto Power BI.
+
+💡 **Dica:** Use sempre versões limpas exportadas do Power BI para evitar conflitos.
+""")
+
+# ---------------------
+# ABAS PRINCIPAIS
+# ---------------------
+tab1, tab2 = st.tabs(["🔍 Comparar Modelos", "🧩 Mesclar Modelos"])
+
+# ---------------------
+# FUNÇÃO DE UPLOAD E EXTRAÇÃO
+# ---------------------
 def save_and_extract_zip(uploaded_file):
     tmp_dir = Path(tempfile.mkdtemp())
     zip_path = tmp_dir / uploaded_file.name
@@ -34,52 +119,59 @@ def save_and_extract_zip(uploaded_file):
         zip_ref.extractall(tmp_dir)
     return tmp_dir
 
-model_a_root = save_and_extract_zip(uploaded_a) if uploaded_a else None
-model_b_root = save_and_extract_zip(uploaded_b) if uploaded_b else None
 
 # ---------------------
-# Comparação
+# ABA 1 - COMPARAR
 # ---------------------
-comparison_text = ""
+with tab1:
+    st.markdown('<div class="section">', unsafe_allow_html=True)
+    st.subheader("📂 Enviar Modelos para Comparação")
 
-compare_button = st.button("Comparar Modelos")
-if compare_button:
-    if not model_a_root or not model_b_root:
-        st.error("Envie os dois arquivos ZIP antes de comparar.")
-    else:
-        with st.spinner("Comparando modelos..."):
-            # localizar .SemanticModel
-            a_sem = find_semantic_model_folder(model_a_root)
-            b_sem = find_semantic_model_folder(model_b_root)
+    col1, col2 = st.columns(2)
+    with col1:
+        uploaded_a = st.file_uploader("Modelo A (.zip)", type=["zip"], key="upload_a_compare")
+    with col2:
+        uploaded_b = st.file_uploader("Modelo B (.zip)", type=["zip"], key="upload_b_compare")
 
-            if not a_sem or not b_sem:
-                st.error("Não foi possível localizar a pasta .SemanticModel em A ou B.")
-            else:
-                # definition/tables
-                a_def = get_definition_tables_folder(a_sem)
-                b_def = get_definition_tables_folder(b_sem)
+    model_a_root = save_and_extract_zip(uploaded_a) if uploaded_a else None
+    model_b_root = save_and_extract_zip(uploaded_b) if uploaded_b else None
 
-                if not a_def or not b_def:
-                    st.error("Não foi possível localizar definition/tables em A ou B.")
+    comparison_text = ""
+
+    compare_button = st.button("🔍 Comparar Modelos", use_container_width=True)
+    if compare_button:
+        if not model_a_root or not model_b_root:
+            st.error("Envie os dois arquivos ZIP antes de comparar.")
+        else:
+            with st.spinner("Comparando modelos..."):
+                a_sem = find_semantic_model_folder(model_a_root)
+                b_sem = find_semantic_model_folder(model_b_root)
+
+                if not a_sem or not b_sem:
+                    st.error("Não foi possível localizar a pasta .SemanticModel em A ou B.")
                 else:
-                    # listar arquivos e parse
-                    a_files = list_tmdl_files(a_def)
-                    b_files = list_tmdl_files(b_def)
+                    a_def = get_definition_tables_folder(a_sem)
+                    b_def = get_definition_tables_folder(b_sem)
 
-                    source_parsed = {f.stem: parse_tmdl_file(f) for f in a_files}
-                    target_parsed = {f.stem: parse_tmdl_file(f) for f in b_files}
+                    if not a_def or not b_def:
+                        st.error("Não foi possível localizar definition/tables em A ou B.")
+                    else:
+                        a_files = list_tmdl_files(a_def)
+                        b_files = list_tmdl_files(b_def)
 
-                    report = compare_models(source_parsed, target_parsed)
-                    counts = report["counts"]
+                        source_parsed = {f.stem: parse_tmdl_file(f) for f in a_files}
+                        target_parsed = {f.stem: parse_tmdl_file(f) for f in b_files}
 
-                    # Resumo
-                    st.subheader("Resumo da Comparação")
-                    st.write(f"Tabelas no Modelo A: {counts['source_total']}")
-                    st.write(f"Tabelas no Modelo B: {counts['target_total']}")
-                    st.write(f"✅ Iguais: {counts['identical']}")
-                    st.write(f"⚠️ Diferentes: {counts['different']}")
-                    st.write(f"➕ Apenas no A: {counts['only_in_source']}")
-                    st.write(f"➖ Apenas no B: {counts['only_in_target']}")
+                        report = compare_models(source_parsed, target_parsed)
+                        counts = report["counts"]
+
+                        st.success("✅ Comparação concluída!")
+                        st.write(f"Tabelas no Modelo A: {counts['source_total']}")
+                        st.write(f"Tabelas no Modelo B: {counts['target_total']}")
+                        st.write(f"✅ Iguais: {counts['identical']}")
+                        st.write(f"⚠️ Diferentes: {counts['different']}")
+                        st.write(f"➕ Apenas no A: {counts['only_in_source']}")
+                        st.write(f"➖ Apenas no B: {counts['only_in_target']}")
 
                     # Detalhes
                     if lists := report.get("lists"):
@@ -140,49 +232,60 @@ if compare_button:
                     comparison_text = "\n".join(lines)
                     st.session_state["ready_to_merge"] = True
 
-# Botão de download do relatório
-if comparison_text:
-    st.download_button(
-        label="📥 Baixar Resultado da Comparação",
-        data=comparison_text,
-        file_name="Comparacao_Modelos.txt",
-        mime="text/plain"
-    )
+    if comparison_text:
+        st.download_button(
+            "📄 Baixar Resultado da Comparação",
+            data=comparison_text,
+            file_name="Comparacao_Modelos.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ---------------------
-# Merge
+# ABA 2 - MESCLAR
 # ---------------------
-if st.session_state.get("ready_to_merge"):
-    st.header("Mesclar Modelos")
-    merge_button = st.button("Mesclar Modelos")
-    if merge_button:
-        with st.spinner("Mesclando modelos..."):
-            # executa o merge
-            result = merge_models(model_a_root, model_b_root)
+with tab2:
+    st.markdown('<div class="section">', unsafe_allow_html=True)
+    st.subheader("🧩 Mesclar Modelos")
 
-            st.success("✅ Merge concluído!")
-            st.write(f"Tabelas novas: {len(result['novas'])}", result['novas'])
-            st.write(f"Tabelas atualizadas: {len(result['atualizadas'])}", result['atualizadas'])
+    uploaded_a_merge = st.file_uploader("Modelo A (.zip)", type=["zip"], key="upload_a_merge")
+    uploaded_b_merge = st.file_uploader("Modelo B (.zip)", type=["zip"], key="upload_b_merge")
 
-            # pegar a pasta pai do .semanticmodel do Modelo B atualizado
-            b_folder = Path(result["destino"]).parent  # aqui pegamos o pai
+    model_a_root = save_and_extract_zip(uploaded_a_merge) if uploaded_a_merge else None
+    model_b_root = save_and_extract_zip(uploaded_b_merge) if uploaded_b_merge else None
 
-            # criar ZIP mantendo a estrutura completa do modelo
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
-                with zipfile.ZipFile(tmp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    for f in b_folder.rglob("*"):
-                        zipf.write(f, f.relative_to(b_folder))  # mantém estrutura de pastas
+    if st.button("🚀 Executar Merge", use_container_width=True):
+        if not model_a_root or not model_b_root:
+            st.error("Envie os dois arquivos ZIP antes de mesclar.")
+        else:
+            with st.spinner("Mesclando modelos..."):
+                result = merge_models(model_a_root, model_b_root)
+                st.success("✅ Merge concluído com sucesso!")
+                st.write(f"Tabelas novas: {len(result['novas'])}", result['novas'])
+                st.write(f"Tabelas atualizadas: {len(result['atualizadas'])}", result['atualizadas'])
 
-            # abrir o ZIP como bytes para o download
-            with open(tmp_zip.name, "rb") as f:
-                zip_bytes = f.read()
-            
-            # botão de download
-            st.download_button(
-                "📥 Baixar Modelo B Atualizado (ZIP)",
-                data=zip_bytes,
-                file_name="ModeloB-Atualizado-SemanticModel.zip",
-                mime="application/zip"
-            )
+                b_folder = Path(result["destino"]).parent
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
+                    with zipfile.ZipFile(tmp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                        for f in b_folder.rglob("*"):
+                            zipf.write(f, f.relative_to(b_folder))
+
+                with open(tmp_zip.name, "rb") as f:
+                    zip_bytes = f.read()
+
+                st.download_button(
+                    "📥 Baixar Modelo B Atualizado (ZIP)",
+                    data=zip_bytes,
+                    file_name="ModeloB-Atualizado-SemanticModel.zip",
+                    mime="application/zip",
+                    use_container_width=True
+                )
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
+# ---------------------
+# RODAPÉ
+# ---------------------
+st.markdown('<div class="footer">Desenvolvido por Thayla Oliveira ✨</div>', unsafe_allow_html=True)
