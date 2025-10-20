@@ -288,4 +288,4 @@ with tab2:
 # ---------------------
 # RODAPÉ
 # ---------------------
-st.markdown('<div class="footer">Desenvolvido por Thayla Oliveira ✨</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Desenvolvido por Thayla Oliveira para Sonar Data Design ✨</div>', unsafe_allow_html=True)
